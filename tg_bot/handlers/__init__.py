@@ -21,7 +21,7 @@ async def get_user(context: ContextTypes.DEFAULT_TYPE, telegram_id: int) -> None
     Utility function that checks if a user in the tg context
     And if there's no one then it queries from the DB
     """
-    if context.user_data['db_user']:
+    if context.user_data.get('db_user'):
         return 
     user = None
     try:
