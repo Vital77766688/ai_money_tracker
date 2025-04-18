@@ -1,0 +1,333 @@
+[
+    {
+        "type": "function",
+        "function": {
+            "name": "get_account_by_id",
+            "description": "Retrieve details of a specific account for a user",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "integer", "description": "User ID"},
+                    "id": {"type": "integer", "description": "Account ID"}
+                },
+                "required": ["user_id", "id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_accounts_by_user_id",
+            "description": "Retrieve all accounts for a user",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "integer", "description": "User ID"}
+                },
+                "required": ["user_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_user_balance",
+            "description": "Retrieve total balance of a user",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "integer", "description": "User ID"}
+                },
+                "required": ["user_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_transaction",
+            "description": "Retrieve details of a specific transaction for a user",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "integer", "description": "User ID"},
+                    "id": {"type": "integer", "description": "Transaction ID"}
+                },
+                "required": ["user_id", "id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_transactions",
+            "description": "Get a list of transactions for a user with optional filters and pagination",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "user_id": {"type": "integer", "description": "User ID"},
+                    "filters": {
+                        "type": "object",
+                        "description": "Optional filters (e.g., {'type_id': 1})"
+                    },
+                    "limit": {"type": "integer", "default": 10},
+                    "offset": {"type": "integer", "default": 0}
+                },
+                "required": ["user_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_transaction",
+            "description": "Soft delete a transaction by marking it as deleted",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer", "description": "Transaction ID"},
+                    "user_id": {"type": "integer", "description": "User ID"}
+                },
+                "required": ["id", "user_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_topup",
+            "description": "Create a top-up transaction",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "transaction": {
+                        "type": "object",
+                        "description": "Top-up transaction data",
+                        "properties": {
+                            "account_id": {
+                                "title": "Account Id", 
+                                "type": "integer"
+                            }, 
+                            "amount": {
+                                "title": "Amount", 
+                                "type": "number"
+                            }, 
+                            "currency": {
+                                "title": "Currency", 
+                                "type": "string"
+                            }, 
+                            "amount_in_account_currency": {
+                                "anyOf": [
+                                    {"type": "number"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Amount In Account Currency"
+                            }, 
+                            "transaction_date": {
+                                "anyOf": [
+                                    {"type": "string"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Transaction Date"
+                            }, 
+                            "description": {
+                                "anyOf": [
+                                    {"type": "string"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Description"
+                            }
+                        }, 
+                        "required": ["account_id", "amount", "currency"], 
+                        "title": "TransactionTopupCreateSchema"
+                    }
+                },
+                "required": ["transaction"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_withdraw",
+            "description": "Create a withdrawal transaction",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "transaction": {
+                        "type": "object",
+                        "description": "Withdrawal transaction data",
+                        "properties": {
+                            "account_id": {
+                                "title": "Account Id", 
+                                "type": "integer"
+                            }, 
+                            "amount": {
+                                "title": "Amount", 
+                                "type": "number"
+                            }, 
+                            "currency": {
+                                "title": "Currency", 
+                                "type": "string"
+                            }, 
+                            "amount_in_account_currency": {
+                                "anyOf": [
+                                    {"type": "number"}, {"type": "null"}
+                                ], "default": "null", 
+                                "title": "Amount In Account Currency"
+                            }, 
+                            "transaction_date": {
+                                "anyOf": [
+                                    {"type": "string"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Transaction Date"
+                            }, 
+                            "description": {
+                                "anyOf": [
+                                    {"type": "string"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Description"
+                            }
+                        }, 
+                        "required": ["account_id", "amount", "currency"], 
+                        "title": "TransactionWithdrawalCreateSchema"
+                    }
+                },
+                "required": ["transaction"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_transfer",
+            "description": "Create a transfer transaction between accounts",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "transaction": {
+                        "type": "object",
+                        "description": "A pair of transactions: debit and credit",
+                        "properties": {
+                            "account_id": {
+                                "title": "Account Id", 
+                                "type": "integer"
+                            }, 
+                            "amount": {
+                                "title": "Amount", 
+                                "type": "number"
+                            }, 
+                            "currency": {
+                                "title": "Currency", 
+                                "type": "string"
+                            }, 
+                            "amount_in_account_currency": {
+                                "anyOf": [
+                                    {"type": "number"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Amount In Account Currency"
+                            }, 
+                            "transaction_date": {
+                                "anyOf": [
+                                    {"type": "string"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Transaction Date"
+                            }, 
+                            "description": {
+                                "anyOf": [
+                                    {"type": "string"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Description"
+                            }, 
+                            "account_to_id": {
+                                "title": "Account To Id", 
+                                "type": "integer"
+                            }, 
+                            "amount_to": {
+                                "anyOf": [
+                                    {"type": "number"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Amount To"
+                            }, 
+                            "currency_to": {
+                                "anyOf": [
+                                    {"type": "string"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": 
+                                "Currency To"
+                            }, 
+                            "amount_in_account_currency_to": {
+                                "anyOf": [
+                                    {"type": "number"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Amount In Account Currency To"
+                            }
+                        }, 
+                        "required": ["account_id", "amount", "currency", "account_to_id"], 
+                        "title": "TransactionTransferCreateSchema"
+                    }
+                },
+                "required": ["transaction"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_purchase",
+            "description": "Create a purchase transaction",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "transaction": {
+                        "type": "object",
+                        "description": "Purchase transaction data",
+                        "properties": {
+                            "account_id": {
+                                "title": "Account Id", 
+                                "type": "integer"
+                            }, 
+                            "amount": {
+                                "title": "Amount", 
+                                "type": "number"
+                            }, 
+                            "currency": {
+                                "title": "Currency", 
+                                "type": "string"
+                            }, 
+                            "amount_in_account_currency": {
+                                "anyOf": [
+                                    {"type": "number"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Amount In Account Currency"
+                            }, 
+                            "transaction_date": {
+                                "anyOf": [
+                                    {"type": "string"}, {"type": "null"}
+                                ], 
+                                "default": "null", 
+                                "title": "Transaction Date"
+                            }, 
+                            "description": {
+                                "title": "Description", 
+                                "type": "string"
+                            }
+                        }, 
+                        "required": ["account_id", "amount", "currency", "description"], 
+                        "title": "TransactionPurchaseCreateSchema"
+                    }
+                },
+                "required": ["transaction"]
+            }
+        }
+    }
+]
