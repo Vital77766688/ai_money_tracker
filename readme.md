@@ -1,8 +1,8 @@
-Thanks! I reviewed your repo: [ai_money_tracker](https://github.com/Vital77766688/ai_money_tracker). Based on the structure and files, here's a tailored `README.md` draft that accurately reflects your project as a portfolio item:
-
----
-
 # 🧠 AI Money Tracker
+
+![Project Illustration](./readme_bg.jpg)
+
+## Overview
 
 **AI Money Tracker** is a personal finance automation tool that uses AI to help you track expenses via Telegram. It processes user messages with AI and stores categorized financial records in a database. The goal is to showcase your backend engineering skills, asynchronous architecture, and AI tool integration.
 
