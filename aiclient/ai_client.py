@@ -1,22 +1,25 @@
 import json
 from openai import AsyncOpenAI
 from . import settings
-from .utils import load_prompt, load_tools
+from .utils import load_tools
 from .tools import tools_mapping
 
 
 tools = load_tools()
-prompt = load_prompt()
 
 
 class Client:
-    def __init__(self, context: dict) -> None:
+    def __init__(self, prompt: str, context: dict=None, save_messages: bool=True) -> None:
         self.model = settings.MODEL_NAME
         self.prompt = prompt
         self.tools = tools or []
         self.tool_choice = settings.TOOL_CHOICE
         self.context = context or {}
-        self.messages = [{"role": "system", "content": self.prompt.format(**self.context)}]
+        self.save_messages = save_messages
+        self.messages = [{
+            "role": "system", 
+            "content": self.prompt.format(**self.context) if len(self.context) else self.prompt
+        }]
 
         self.client = AsyncOpenAI(api_key=settings.API_KEY, base_url='https://api.openai.com/v1')
 
@@ -63,8 +66,12 @@ class Client:
                     "content": tool_response
                 })
             response = await self.get_completion()
-            
+        
+        result = "No reply! Try again!"
         if response.content:
             self.add_message({"role": "assistant", "content": response.content})
-            return response.content
-        return "No reply! Try again!"
+            result = response.content
+        
+        if not self.save_messages:
+            self.messages = self.messages[:1]
+        return result

@@ -9,6 +9,7 @@ from budget.database import Session
 from budget.schemas import UserCreateSchema
 from budget.repositories.user_repository import UserRepository
 from aiclient.ai_client import Client
+from aiclient.utils import load_user_prompt
 
 from .. import logger
 from ..utils import notify_admin
@@ -61,8 +62,7 @@ async def ai_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
     ai_handler - activates the openai client and handles all user's messages if the user is registered
     """
     await context.bot.send_chat_action(chat_id=update.effective_user.id, action=constants.ChatAction.TYPING)
-    await get_user(context, update.effective_user.id)
-    user = context.user_data['db_user']
+    user = context.user_data.get('db_user')
         
     if not user:
         await update.message.reply_text("Чтобы начать, пожалуйста нажми /start 👋")
@@ -73,7 +73,8 @@ async def ai_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None
             'user': user,
             'date': datetime.datetime.now().strftime('%Y-%m-%d')
         }
-        context.user_data['ai_client'] = Client(ai_context)
+        prompt = load_user_prompt()
+        context.user_data['ai_client'] = Client(prompt, ai_context)
 
     message = update.message.text
     ai_client: Client = context.user_data.get('ai_client')

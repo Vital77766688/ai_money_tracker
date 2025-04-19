@@ -1,6 +1,6 @@
 import datetime
 from enum import Enum
-from pydantic import BaseModel, field_validator, model_serializer
+from pydantic import BaseModel, Field, field_validator, field_serializer, model_serializer
 
 
 class UserCreateSchema(BaseModel):
@@ -19,10 +19,14 @@ class AccountTypeSchema(BaseModel):
 
 class AccountCreateSchema(BaseModel):
     user_id: int
-    name: str
+    name: str = Field(None, max_length=50)
     type_id: int
-    currency: str
+    currency: str = Field(None, max_length=3)
     balance: float | None = None
+
+    @field_serializer('currency', mode="plain")
+    def serialize_currency(self, value: str) -> str:
+        return value.upper()
 
 
 class AccountSchema(AccountCreateSchema):

@@ -41,9 +41,14 @@ class Account(Base):
 
 class AccountType(Base):
     __tablename__ = "account_types"
+    __table_args__ = (
+        UniqueConstraint("user_id", "type_name", name="uq_user_account_type_name"),
+        {"extend_existing": True}
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     type_name: Mapped[str] = mapped_column(String(50), nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
 
 
 class Category(Base):
