@@ -114,6 +114,14 @@ class Transaction(Base):
     type: Mapped["TransactionType"] = relationship("TransactionType", back_populates=None)
 
 
+class Currency(Base):
+    __tablename__ = "currencies"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+    iso_code: Mapped[str] = mapped_column(String(10), nullable=False, unique=True)
+
+
 # class TransactionPurchsedItem(Base):
 #     ...
 

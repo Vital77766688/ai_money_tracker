@@ -1,9 +1,16 @@
 from sqlalchemy import select, func, and_
 from sqlalchemy.exc import NoResultFound
+from thefuzz import process, fuzz
 from . import BaseRepository
 from .transaction_repository import TransactionRepository
-from budget.models import Account, AccountType, Transaction
-from budget.schemas import AccountCreateSchema, AccountSchema, TransactionTopupCreateSchema, TransactionWithdrawalCreateSchema
+from budget.models import Account, AccountType, Transaction, Currency
+from budget.schemas import (
+    AccountCreateSchema, 
+    AccountSchema, 
+    TransactionTopupCreateSchema, 
+    TransactionWithdrawalCreateSchema,
+    CurrencySchema
+)
 
 
 class AccountRepository(BaseRepository):
@@ -115,3 +122,27 @@ class AccountRepository(BaseRepository):
             if balance is None:
                 raise NoResultFound
             return balance
+        
+    async def find_currency_by_iso_code(self, code: str) -> CurrencySchema:
+        async with self.session() as session:
+            currency = await session.execute(select(Currency.iso_code, Currency.name).filter_by(iso_code=code.strip().upper()))
+            return CurrencySchema.model_validate(currency.one(), from_attributes=True)
+
+    async def find_currency_by_name(self, name: str) -> CurrencySchema:
+        async with self.session() as session:
+            currencies = await session.execute(select(Currency.iso_code, Currency.name))
+            currencies = currencies.all()
+
+            # Trying to find similar value
+            choices = [f'{c.iso_code.upper()}:{c.name.upper()}' for c in currencies]
+            similarities = process.extract(name.strip().upper(), choices, scorer=fuzz.partial_token_sort_ratio, limit=1)
+            currency, prob = similarities[0]
+
+            # Consider that there're no rows returtn
+            if prob <= 50:
+                raise NoResultFound
+            iso_code, _ = currency.split(':')
+
+            # Returning the value without upper() and slicers
+            currency = [f"{c.name}" for c in currencies if c.iso_code==iso_code][0]
+            return CurrencySchema(name=currency, iso_code=iso_code)

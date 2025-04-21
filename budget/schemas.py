@@ -198,3 +198,8 @@ class TransactionSchema(BaseModel):
 
 class TransactionDetailsSchema(TransactionSchema):
     description: str | None = None
+
+
+class CurrencySchema(BaseModel):
+    name: str
+    iso_code: str

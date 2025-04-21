@@ -13,17 +13,24 @@ from telegram.ext import (
     filters
 )
 from pydantic import ValidationError
+from sqlalchemy.exc import NoResultFound
 
 from budget.database import Session
 from budget.schemas import AccountCreateSchema
 from budget.repositories.account_repository import AccountRepository
-from .. import logger
 from ..utils import notify_admin
 # from aiclient.ai_client import Client
 # from aiclient.utils import load_system_prompts
 
 
-CREATE_ACCOUNT, ACCOUNT_NAME, ACCOUNT_TYPE, ACCOUNT_CURRENCY, ACCOUNT_INIT_BALANCE, CREATE_ACCOUNT_CHECK = range(6)
+(
+    CREATE_ACCOUNT, 
+    ACCOUNT_NAME, 
+    ACCOUNT_TYPE, 
+    ACCOUNT_CURRENCY, 
+    ACCOUNT_INIT_BALANCE, 
+    CREATE_ACCOUNT_CHECK
+) = range(6)
 
 # prompt = load_system_prompts()
 # ai_helper = Client(prompt['form_validator'], save_messages=False)
@@ -73,15 +80,17 @@ class CreateAccountMessages:
 Если хочешь создать еще один тапни /create\\_account
 """
     create_account_system_error = """Что-то поломалось. Мы уже смотрим, повтори позже"""
+    no_currency_found = """Не могу найти такую валюту, попробуй ввести подробнее или 3-х значный код, если знаешь"""
 
     @classmethod
     def create_account_validated(cls, account: dict) -> str:
+        balance = f"{float(account['balance']):,.2f}".replace(',', ' ').replace('.', ',')
         return f"""
 Замечательно! Теперь проверь все ли верно записано.\n
 *Название счета:* {account.get('name')}
 *Тип:* {"Текущий"}
-*Валюта:* {account.get('currency')}
-*Баланс:* {account.get('balance')}\n
+*Валюта:* {account.get('currency_name')} ({account.get('currency')})
+*Баланс:* {balance}\n
 Ответь *Да* или *Нет*
 """
     
@@ -170,9 +179,9 @@ async def create_account_type(update: Update, context: ContextTypes.DEFAULT_TYPE
     context.user_data['new_account']['type_id'] = 1
 
     reply_markup = ReplyKeyboardRemove()
-    if context.user_data['new_account'].get('currency'):
+    if context.user_data['new_account'].get('currency_user_input'):
         reply_markup = ReplyKeyboardMarkup(
-            keyboard=[[context.user_data['new_account']['currency']]],
+            keyboard=[[context.user_data['new_account']['currency_user_input']]],
             resize_keyboard=True,
             one_time_keyboard=True,
         )
@@ -185,7 +194,19 @@ async def create_account_type(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def create_account_currency(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await context.bot.send_chat_action(chat_id=update.effective_user.id, action=constants.ChatAction.TYPING)
-    context.user_data['new_account']['currency'] = update.message.text
+    repo = AccountRepository(Session)
+    try:
+        currency = await repo.find_currency_by_name(update.message.text)
+    except NoResultFound:
+        await update.message.reply_markdown(
+            CreateAccountMessages.no_currency_found,
+            reply_markup=ReplyKeyboardRemove()
+        )
+        return ACCOUNT_CURRENCY
+
+    context.user_data['new_account']['currency_user_input'] = update.message.text
+    context.user_data['new_account']['currency'] = currency.iso_code
+    context.user_data['new_account']['currency_name'] = currency.name
 
     reply_markup = ReplyKeyboardRemove()
     if context.user_data['new_account'].get('balance'):
@@ -203,7 +224,7 @@ async def create_account_currency(update: Update, context: ContextTypes.DEFAULT_
 
 async def create_account_init_balance(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await context.bot.send_chat_action(chat_id=update.effective_user.id, action=constants.ChatAction.TYPING)
-    context.user_data['new_account']['balance'] = update.message.text
+    context.user_data['new_account']['balance'] = update.message.text.replace(',', '.')
 
     reply_markup = ReplyKeyboardMarkup(
         keyboard=[["Да", "Нет"]],
