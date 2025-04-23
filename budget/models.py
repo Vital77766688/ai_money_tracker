@@ -25,7 +25,7 @@ class Account(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
-    type_id: Mapped[int] = mapped_column(ForeignKey("account_types.id", ondelete="RESTRICT"), nullable=False)
+    description: Mapped[str] = mapped_column(String(255), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     balance: Mapped[float] = mapped_column(Float, default=0.0)
     created_at: Mapped[str] = mapped_column(DateTime, server_default=func.now())
@@ -37,18 +37,6 @@ class Account(Base):
         back_populates="account",
         foreign_keys="[Transaction.account_id]",
     )
-
-
-class AccountType(Base):
-    __tablename__ = "account_types"
-    __table_args__ = (
-        UniqueConstraint("user_id", "type_name", name="uq_user_account_type_name"),
-        {"extend_existing": True}
-    )
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    type_name: Mapped[str] = mapped_column(String(50), nullable=False)
-    user_id: Mapped[int] = mapped_column(ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
 
 
 class Category(Base):

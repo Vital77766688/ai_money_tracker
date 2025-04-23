@@ -19,10 +19,10 @@ class AccountTypeSchema(BaseModel):
 
 class AccountCreateSchema(BaseModel):
     user_id: int
-    name: str = Field(None, max_length=50)
-    type_id: int
-    currency: str = Field(None, max_length=3)
-    balance: float | None = None
+    name: str = Field(max_length=20)
+    description: str | None = Field(None, max_length=50)
+    currency: str = Field(min_length=3, max_length=3)
+    balance: float = Field(0.)
 
     @field_serializer('currency', mode="plain")
     def serialize_currency(self, value: str) -> str:
@@ -30,12 +30,10 @@ class AccountCreateSchema(BaseModel):
 
 
 class AccountSchema(AccountCreateSchema):
-    type_name: str
-    balance: float
     id: int
-    created_at: str  # Use str for date representation in JSON
+    created_at: datetime.datetime
 
-    @field_validator("created_at", mode="before")
+    @field_serializer("created_at", mode="plain")
     @classmethod
     def serialize_created_at(cls, value: datetime.datetime) -> str:
         return value.strftime("%Y-%m-%d")
@@ -79,7 +77,7 @@ class TransactionTypesEnum(int, Enum):
 class TranasctionCreateSchema(BaseModel):
     account_id: int
     amount: float
-    currency: str
+    currency: str = Field(min_length=3, max_length=3)
     amount_in_account_currency: float | None = None
     transaction_date: str | None = None
     description: str | None = None
@@ -148,7 +146,7 @@ class TransactionPurchaseCreateSchema(TranasctionCreateSchema):
 class TransactionTransferCreateSchema(TranasctionCreateSchema):
     account_to_id: int
     amount_to: float | None = None
-    currency_to: str | None = None
+    currency_to: str | None = Field(None, min_length=3, max_length=3)
     amount_in_account_currency_to: float | None = None
 
     @model_serializer(mode="plain")

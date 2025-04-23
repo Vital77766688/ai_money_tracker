@@ -3,7 +3,7 @@ from sqlalchemy.exc import NoResultFound
 from thefuzz import process, fuzz
 from . import BaseRepository
 from .transaction_repository import TransactionRepository
-from budget.models import Account, AccountType, Transaction, Currency
+from budget.models import Account, Transaction, Currency
 from budget.schemas import (
     AccountCreateSchema, 
     AccountSchema, 
@@ -51,14 +51,12 @@ class AccountRepository(BaseRepository):
             account = await session.execute(
                 select(Account.user_id,
                        Account.name,
-                       Account.type_id,
+                       Account.description,
                        Account.currency,
-                       AccountType.type_name,
                        func.coalesce(func.sum(Transaction.amount), 0.).label('balance'),
                        Account.id,
                        Account.created_at) \
                 .filter_by(id=id, user_id=user_id)
-                .join(AccountType) \
                 .join(Transaction, and_(
                         Transaction.account_id==Account.id, 
                         Transaction.is_deleted==False
@@ -67,9 +65,8 @@ class AccountRepository(BaseRepository):
                 .group_by(
                     Account.user_id,
                     Account.name,
-                    Account.type_id,
+                    Account.description,
                     Account.currency,
-                    AccountType.type_name,
                     Account.id,
                     Account.created_at
                 )
@@ -81,14 +78,12 @@ class AccountRepository(BaseRepository):
             accounts = await session.execute(
                 select(Account.user_id,
                        Account.name,
-                       Account.type_id,
+                       Account.description,
                        Account.currency,
-                       AccountType.type_name,
                        func.coalesce(func.sum(Transaction.amount), 0.).label('balance'),
                        Account.id,
                        Account.created_at) \
                 .filter_by(user_id=user_id) \
-                .join(AccountType)
                 .join(Transaction, and_(
                         Transaction.account_id==Account.id, 
                         Transaction.is_deleted==False
@@ -97,9 +92,8 @@ class AccountRepository(BaseRepository):
                 .group_by(
                     Account.user_id,
                     Account.name,
-                    Account.type_id,
+                    Account.description,
                     Account.currency,
-                    AccountType.type_name,
                     Account.id,
                     Account.created_at
                 ) \

@@ -26,7 +26,7 @@ from ..utils import notify_admin
 (
     CREATE_ACCOUNT, 
     ACCOUNT_NAME, 
-    ACCOUNT_TYPE, 
+    ACCOUNT_DESCRIPTION, 
     ACCOUNT_CURRENCY, 
     ACCOUNT_INIT_BALANCE, 
     CREATE_ACCOUNT_CHECK
@@ -48,9 +48,9 @@ class CreateAccountMessages:
 Укажи название счета.\n
 Не более 20 символов
 """
-    create_account_type = """
-Хорошо! Теперь выбери тип счета.\n
-Не более 20 символов
+    create_account_description = """
+Хорошо! Теперь заполни описание.\n
+Не более 50 символов (можно оставить пустым)
 """
     create_account_currency = """
 Очень хорошо! Какая у счета будет валюта?\n
@@ -88,7 +88,7 @@ class CreateAccountMessages:
         return f"""
 Замечательно! Теперь проверь все ли верно записано.\n
 *Название счета:* {account.get('name')}
-*Тип:* {"Текущий"}
+*Описание:* {account['description'] if account.get('description') else ''}
 *Валюта:* {account.get('currency_name')} ({account.get('currency')})
 *Баланс:* {balance}\n
 Ответь *Да* или *Нет*
@@ -157,26 +157,26 @@ async def create_account_name(update: Update, context: ContextTypes.DEFAULT_TYPE
     await context.bot.send_chat_action(chat_id=update.effective_user.id, action=constants.ChatAction.TYPING)
     context.user_data['new_account']['name'] = update.message.text
 
-    reply_markup = ReplyKeyboardRemove()
-    if context.user_data['new_account'].get('type'):
+    reply_markup = ReplyKeyboardMarkup(keyboard=[['Пропустить']], resize_keyboard=True, one_time_keyboard=True)
+    if context.user_data['new_account'].get('description'):
         reply_markup = ReplyKeyboardMarkup(
-            keyboard=[[context.user_data['new_account']['type']]],
+            keyboard=[[context.user_data['new_account']['description']]],
             resize_keyboard=True,
             one_time_keyboard=True,
         )
     await update.message.reply_markdown(
-        CreateAccountMessages.create_account_type, 
+        CreateAccountMessages.create_account_description, 
         reply_markup=reply_markup
     )
     # Посадить кнопки
-    return ACCOUNT_TYPE
+    return ACCOUNT_DESCRIPTION
 
 
-async def create_account_type(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+async def create_account_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await context.bot.send_chat_action(chat_id=update.effective_user.id, action=constants.ChatAction.TYPING)
     # изменить на указанный тип счета
-    context.user_data['new_account']['type'] = update.message.text
-    context.user_data['new_account']['type_id'] = 1
+    text = update.message.text
+    context.user_data['new_account']['description'] = text if text != 'Пропустить' else None
 
     reply_markup = ReplyKeyboardRemove()
     if context.user_data['new_account'].get('currency_user_input'):
@@ -303,7 +303,7 @@ create_account_handler = ConversationHandler(
     states={
         CREATE_ACCOUNT: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_account)],
         ACCOUNT_NAME: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_account_name)],
-        ACCOUNT_TYPE: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_account_type)],
+        ACCOUNT_DESCRIPTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_account_description)],
         ACCOUNT_CURRENCY: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_account_currency)],
         ACCOUNT_INIT_BALANCE: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_account_init_balance)],
         CREATE_ACCOUNT_CHECK: [MessageHandler(filters.TEXT & ~filters.COMMAND, create_account_check)]
