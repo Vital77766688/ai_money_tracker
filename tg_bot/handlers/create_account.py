@@ -2,7 +2,6 @@
 # The goal of this conversation is to collect data about new account
 # than the user about to create and then create an account
 
-import json
 import asyncio
 from telegram import Update, ReplyKeyboardMarkup, ReplyKeyboardRemove, constants
 from telegram.ext import (
@@ -18,9 +17,7 @@ from sqlalchemy.exc import NoResultFound
 from budget.database import Session
 from budget.schemas import AccountCreateSchema
 from budget.repositories.account_repository import AccountRepository
-from ..utils import notify_admin
-# from aiclient.ai_client import Client
-# from aiclient.utils import load_system_prompts
+from . import get_user
 
 
 (
@@ -32,8 +29,12 @@ from ..utils import notify_admin
     CREATE_ACCOUNT_CHECK
 ) = range(6)
 
-# prompt = load_system_prompts()
-# ai_helper = Client(prompt['form_validator'], save_messages=False)
+
+async def raise_for_conversation(update, context, exc):
+    context.error = exc
+    handler = list(context.application.error_handlers.keys())[0]
+    await handler(update, context)
+    return ConversationHandler.END
 
 
 class CreateAccountMessages:
@@ -106,10 +107,7 @@ class CreateAccountMessages:
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await context.bot.send_chat_action(chat_id=update.effective_user.id, action=constants.ChatAction.TYPING)
-    user = context.user_data.get('db_user')
-    if not user:
-        await update.message.reply_text(CreateAccountMessages.user_not_found)
-        return ConversationHandler.END
+    _ = await get_user(context, update.effective_user.id)
     context.user_data['new_account'] = {}    
     reply_markup = ReplyKeyboardMarkup(
         keyboard=[["Да", "Нет"]],
@@ -174,7 +172,6 @@ async def create_account_name(update: Update, context: ContextTypes.DEFAULT_TYPE
 
 async def create_account_description(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await context.bot.send_chat_action(chat_id=update.effective_user.id, action=constants.ChatAction.TYPING)
-    # изменить на указанный тип счета
     text = update.message.text
     context.user_data['new_account']['description'] = text if text != 'Пропустить' else None
 
@@ -266,12 +263,8 @@ async def create_account_check(update: Update, context: ContextTypes.DEFAULT_TYP
             )
             return ConversationHandler.END
         except Exception as e:
-            await notify_admin(str(e))
-            await update.message.reply_markdown(
-                CreateAccountMessages.create_account_system_error,
-                reply_markup=ReplyKeyboardRemove()
-            )
-            return ConversationHandler.END
+            # Is there more elegant way to perform conversation end with global error_handler?
+            return await raise_for_conversation(update, context, e)
     elif response.strip().lower() == 'нет':
         await update.message.reply_markdown(
             CreateAccountMessages.create_account_reject, 
