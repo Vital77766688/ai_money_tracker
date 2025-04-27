@@ -37,6 +37,35 @@ async def raise_for_conversation(update, context, exc):
     return ConversationHandler.END
 
 
+validation_messages = {
+    'AccountCreateSchema': {
+        'name': {
+            'string_too_long': '*Название счета* не должно превышать 20 символов',
+        },
+        'currency': {
+            'string_too_long': '*Код валюты* должен быть ровно 3 символа (например: USD, EUR и тд.)',
+            'string_too_short': '*Код валюты* должен быть ровно 3 символа (например: USD, EUR и тд.)',
+        },
+        'balance': {
+            'float_parsing': '*Баланс* должен быть числом',
+        }
+    }
+}
+
+def get_validation_error_message(errors: ValidationError) -> list[str]:
+    result = []
+    schema = errors.title
+    for error in errors.errors():
+        loc = '.'.join(error['loc'])
+        msg = error['msg']
+        err_type = error['type']
+        try:
+            result.append(validation_messages[schema][loc][err_type])
+        except KeyError:
+            result.append(f"*{loc}*: {msg}")
+    return result
+
+
 class CreateAccountMessages:
     user_not_found = "Что-то не так. Попробуй начать с команды /start"
     create_account_ready = """
@@ -96,11 +125,13 @@ class CreateAccountMessages:
 """
     
     @classmethod
-    def create_account_validation_error(cls, account:dict, errors: list) -> str:
+    def create_account_validation_error(cls, errors: ValidationError) -> str:
         msg = "Есть ошибки при заполнении опросника. Исправьте их и продолжим.\n\n"
-        for error in errors:
-            account[error['loc'][0]] = None
-            msg += f"*{error['loc'][0]}:* {error['msg']}\n"
+        # for error in errors:
+        #     account[error['loc'][0]] = None
+        #     msg += f"*{error['loc'][0]}:* {error['msg']}\n"
+        for error in get_validation_error_message(errors):
+            msg += f"- {error}\n"
         msg += '\nТакже ты можешь отменить создание счета командой /cancel'
         return msg
 
@@ -238,9 +269,8 @@ async def create_account_init_balance(update: Update, context: ContextTypes.DEFA
         )
         return CREATE_ACCOUNT_CHECK
     except ValidationError as e:
-        errors = e.errors()
         await update.message.reply_markdown(
-            CreateAccountMessages.create_account_validation_error(account_data, errors)
+            CreateAccountMessages.create_account_validation_error(e)
         )
         await asyncio.sleep(1)
         await update.message.reply_markdown(
