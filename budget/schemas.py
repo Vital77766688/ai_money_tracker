@@ -4,17 +4,12 @@ from pydantic import BaseModel, Field, field_validator, field_serializer, model_
 
 
 class UserCreateSchema(BaseModel):
-    name: str
+    name: str = Field(max_length=20)
     telegram_id: int
 
 
 class UserSchema(UserCreateSchema):
     id: int
-
-
-class AccountTypeSchema(BaseModel):
-    id: int
-    type_name: str
 
 
 class AccountCreateSchema(BaseModel):
@@ -34,13 +29,12 @@ class AccountSchema(AccountCreateSchema):
     created_at: datetime.datetime
 
     @field_serializer("created_at", mode="plain")
-    @classmethod
-    def serialize_created_at(cls, value: datetime.datetime) -> str:
+    def serialize_created_at(self, value: datetime.datetime) -> str:
         return value.strftime("%Y-%m-%d")
 
 
 class CategoryCreateSchema(BaseModel):
-    name: str
+    name: str = Field(max_length=20)
 
 
 class CategorySchema(CategoryCreateSchema):
@@ -48,7 +42,7 @@ class CategorySchema(CategoryCreateSchema):
 
 
 class VendorCreateSchema(BaseModel):
-    name: str
+    name: str = Field(max_length=20)
 
 
 class VendorSchema(VendorCreateSchema):
@@ -56,7 +50,7 @@ class VendorSchema(VendorCreateSchema):
 
 
 class ItemCreateSchema(BaseModel):
-    name: str
+    name: str = Field(max_length=20)
     category_id: int
     vendor_id: int
     price: float
@@ -80,7 +74,7 @@ class TranasctionCreateSchema(BaseModel):
     currency: str = Field(min_length=3, max_length=3)
     amount_in_account_currency: float | None = None
     transaction_date: str | None = None
-    description: str | None = None
+    description: str | None = Field(None, max_length=255)
 
     @field_validator("transaction_date", mode="before")
     @classmethod
