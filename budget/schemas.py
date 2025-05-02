@@ -69,6 +69,7 @@ class TransactionTypesEnum(int, Enum):
 
 
 class TranasctionCreateSchema(BaseModel):
+    user_id: int
     account_id: int
     amount: float
     currency: str = Field(min_length=3, max_length=3)
@@ -88,6 +89,7 @@ class TranasctionCreateSchema(BaseModel):
 
     def _ser_model(self, type_id: int) -> dict:
         return {
+            "user_id": self.user_id,
             "type_id": type_id,
             "account_id": self.account_id,
             "amount": self.amount,
@@ -159,6 +161,7 @@ class TransactionTransferCreateSchema(TranasctionCreateSchema):
             else amount_to
 
         to_model = {
+            "user_id": self.user_id,
             "type_id": type_id,
             "account_id": self.account_to_id,
             "amount": amount_to,

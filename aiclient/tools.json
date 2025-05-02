@@ -104,6 +104,10 @@
                         "type": "object",
                         "description": "Top-up transaction data",
                         "properties": {
+                            "user_id": {
+                                "title": "User Id", 
+                                "type": "integer"
+                            }, 
                             "account_id": {
                                 "title": "Account Id", 
                                 "type": "integer"
@@ -158,6 +162,10 @@
                         "type": "object",
                         "description": "Withdrawal transaction data",
                         "properties": {
+                            "user_id": {
+                                "title": "User Id", 
+                                "type": "integer"
+                            }, 
                             "account_id": {
                                 "title": "Account Id", 
                                 "type": "integer"
@@ -211,6 +219,10 @@
                         "type": "object",
                         "description": "A pair of transactions: debit and credit",
                         "properties": {
+                            "user_id": {
+                                "title": "User Id", 
+                                "type": "integer"
+                            }, 
                             "account_id": {
                                 "title": "Account Id", 
                                 "type": "integer"
@@ -291,6 +303,10 @@
                         "type": "object",
                         "description": "Purchase transaction data",
                         "properties": {
+                            "user_id": {
+                                "title": "User Id", 
+                                "type": "integer"
+                            }, 
                             "account_id": {
                                 "title": "Account Id", 
                                 "type": "integer"

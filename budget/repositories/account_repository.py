@@ -27,6 +27,7 @@ class AccountRepository(BaseRepository):
         transaction_repo = TransactionRepository(self.session)
         if account.balance > 0:
             transaction = TransactionTopupCreateSchema(
+                user_id=account.user_id,
                 account_id=new_account.id,
                 amount=account.balance,
                 currency=account.currency,
@@ -35,6 +36,7 @@ class AccountRepository(BaseRepository):
             await transaction_repo.create_topup(transaction)
         elif account.balance < 0:
             transaction = TransactionWithdrawalCreateSchema(
+                user_id=account.user_id,
                 account_id=new_account.id,
                 amount=account.balance,
                 currency=account.currency,

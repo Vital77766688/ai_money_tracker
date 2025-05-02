@@ -47,7 +47,7 @@ class TransactionRepository(BaseRepository):
                     Transaction.transaction_date,
                 ) \
                 .join(TransactionType, Transaction.type_id == TransactionType.id) \
-                .join(Account) \
+                .join(Account, Transaction.account_id == Account.id) \
                 .filter_by(user_id=user_id)
                 .filter(Transaction.is_deleted==False, **filters) \
                 .order_by(Transaction.id.desc()) \
@@ -60,14 +60,25 @@ class TransactionRepository(BaseRepository):
         async with self.session() as session:
             await session.execute(
                 update(Transaction) \
-                .where(Transaction.id==id) \
-                .where(Account.user_id==user_id) \
+                .where(
+                    Transaction.id==id,
+                    Transaction.account_id==Account.id,
+                    Account.user_id==user_id
+                ) \
                 .values(is_deleted=True, deleted_at=datetime.datetime.now())
             )
             await session.commit()
 
     async def _create_transaction(self, transaction: dict) -> None:
         async with self.session() as session:
+            account = await session.execute(
+                select(Account) \
+                .where(
+                    Account.user_id==transaction.pop('user_id', -9999), 
+                    Account.id==transaction['account_id']
+                )
+            )
+            account = account.scalar_one()
             new_transaction = Transaction(**transaction)
             session.add(new_transaction)
             await session.commit()
@@ -81,6 +92,22 @@ class TransactionRepository(BaseRepository):
     async def create_transfer(self, transaction: TransactionTransferCreateSchema) -> None:
         async with self.session() as session:
             from_transaction, to_transaction = transaction.model_dump().values()
+            from_account = await session.execute(
+                select(Account) \
+                .where(
+                    Account.user_id==from_transaction.pop('user_id', -9999), 
+                    Account.id==from_transaction['account_id']
+                )
+            )
+            _ = from_account.scalar_one()
+            to_account = await session.execute(
+                select(Account) \
+                .where(
+                    Account.user_id==to_transaction.pop('user_id', -9999), 
+                    Account.id==to_transaction['account_id']
+                )
+            )
+            _ = to_account.scalar_one()
             session.add_all([
                 Transaction(**from_transaction),
                 Transaction(**to_transaction)

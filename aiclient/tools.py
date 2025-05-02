@@ -82,6 +82,8 @@ async def create_topup(**kwargs) -> dict:
         validated_kwargs = TransactionTopupCreateSchema(**kwargs['transaction'])
         await transaction_repo.create_topup(validated_kwargs)
         return {"status": "Success"}
+    except NoResultFound:
+        return {"status": "Account not found"}
     except Exception as e:
         logger.error(str(e))
         await notify_admin(str(e))
@@ -95,6 +97,8 @@ async def create_withdraw(**kwargs) -> dict:
         validated_kwargs = TransactionWithdrawalCreateSchema(**kwargs['transaction'])
         await transaction_repo.create_withdraw(validated_kwargs)
         return {"status": "Success"}
+    except NoResultFound:
+        return {"status": "Account not found"}
     except Exception as e:
         logger.error(str(e))
         await notify_admin(str(e))
@@ -108,6 +112,8 @@ async def create_purchase(**kwargs) -> dict:
         validated_kwargs = TransactionPurchaseCreateSchema(**kwargs['transaction'])
         await transaction_repo.create_purchase(validated_kwargs)
         return {"status": "Success"}
+    except NoResultFound:
+        return {"status": "Account not found"}
     except Exception as e:
         logger.error(str(e))
         await notify_admin(str(e))
@@ -121,6 +127,8 @@ async def create_transfer(**kwargs) -> dict:
         validated_kwargs = TransactionTransferCreateSchema(**kwargs['transaction'])
         await transaction_repo.create_transfer(validated_kwargs)
         return {"status": "Success"}
+    except NoResultFound:
+        return {"status": "Account not found"}
     except Exception as e:
         logger.error(str(e))
         await notify_admin(str(e))
