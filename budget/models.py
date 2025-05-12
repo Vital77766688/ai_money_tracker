@@ -65,8 +65,8 @@ class Item(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
     name: Mapped[str] = mapped_column(String(50), nullable=False)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
-    category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="RESTRICT"), nullable=False)
-    vendor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("vendors.id", ondelete="RESTRICT"), nullable=False)
+    category_id: Mapped[int] = mapped_column(ForeignKey("categories.id", ondelete="NO ACTION"), nullable=False)
+    vendor_id: Mapped[Optional[int]] = mapped_column(ForeignKey("vendors.id", ondelete="NO ACTION"), nullable=False)
     price: Mapped[float] = mapped_column(Float, nullable=False)
 
     category: Mapped["Category"] = relationship("Category", back_populates="items")
@@ -84,13 +84,14 @@ class Transaction(Base):
     __tablename__ = "transactions"
 
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
-    type_id: Mapped[int] = mapped_column(ForeignKey("transaction_types.id", ondelete="RESTRICT"), nullable=False)
-    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="RESTRICT"), nullable=False)
+    type_id: Mapped[int] = mapped_column(ForeignKey("transaction_types.id", ondelete="NO ACTION"), nullable=False)
+    account_id: Mapped[int] = mapped_column(ForeignKey("accounts.id", ondelete="NO ACTION"), nullable=False)
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     amount_in_account_currency: Mapped[float] = mapped_column(Float, nullable=False)
     transaction_date: Mapped[Date] = mapped_column(Date, server_default=func.current_date(), nullable=True)
     description: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    reference_transaction_id: Mapped[int] = mapped_column(ForeignKey('transactions.id'), nullable=True)
     is_deleted: Mapped[bool] = mapped_column(default=False)
     deleted_at: Mapped[Optional[str]] = mapped_column(DateTime, nullable=True)
 

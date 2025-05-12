@@ -12,12 +12,17 @@ from telegram.ext import (
     filters
 )
 from pydantic import ValidationError
-from sqlalchemy.exc import NoResultFound
 
+from core.uow import UnitOfWork
 from budget.database import Session
 from budget.schemas import AccountCreateSchema
-from budget.repositories.account_repository import AccountRepository
+from budget.repositories import AccountRepository
+from budget.services import AccountService
+from budget.exceptions import AccountAlreadyExists, CurrencyNotFound
 from . import get_user
+
+
+uow = UnitOfWork(Session, repositories={'accounts': AccountRepository})
 
 
 (
@@ -222,15 +227,16 @@ async def create_account_description(update: Update, context: ContextTypes.DEFAU
 
 async def create_account_currency(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await context.bot.send_chat_action(chat_id=update.effective_user.id, action=constants.ChatAction.TYPING)
-    repo = AccountRepository(Session)
-    try:
-        currency = await repo.find_currency_by_name(update.message.text)
-    except NoResultFound:
-        await update.message.reply_markdown(
-            CreateAccountMessages.no_currency_found,
-            reply_markup=ReplyKeyboardRemove()
-        )
-        return ACCOUNT_CURRENCY
+    async with uow:
+        service = AccountService(uow)
+        try:
+            currency = await service.find_currency(update.message.text)
+        except CurrencyNotFound:
+            await update.message.reply_markdown(
+                CreateAccountMessages.no_currency_found,
+                reply_markup=ReplyKeyboardRemove()
+            )
+            return ACCOUNT_CURRENCY
 
     context.user_data['new_account']['currency_user_input'] = update.message.text
     context.user_data['new_account']['currency'] = currency.iso_code
@@ -284,17 +290,24 @@ async def create_account_check(update: Update, context: ContextTypes.DEFAULT_TYP
     await context.bot.send_chat_action(chat_id=update.effective_user.id, action=constants.ChatAction.TYPING)
     response = update.message.text
     if response.strip().lower() == 'да':
-        repo = AccountRepository(Session)
-        try:
-            await repo.create_account(context.user_data['validated_account'])
-            await update.message.reply_markdown(
-                CreateAccountMessages.create_account_success, 
-                reply_markup=ReplyKeyboardRemove()
-            )
-            return ConversationHandler.END
-        except Exception as e:
-            # Is there more elegant way to perform conversation end with global error_handler?
-            return await raise_for_conversation(update, context, e)
+        async with uow:
+            service = AccountService(uow)
+            try:
+                await service.create_account(context.user_data['validated_account'])
+                await uow.commit()
+                await update.message.reply_markdown(
+                    CreateAccountMessages.create_account_success, 
+                    reply_markup=ReplyKeyboardRemove()
+                )
+                return ConversationHandler.END
+            except AccountAlreadyExists:
+                await update.message.reply_markdown(
+                    'Account with this name already exists'
+                )
+                return ConversationHandler.END
+            except Exception as e:
+                # Is there more elegant way to perform conversation end with global error_handler?
+                return await raise_for_conversation(update, context, e)
     elif response.strip().lower() == 'нет':
         await update.message.reply_markdown(
             CreateAccountMessages.create_account_reject, 

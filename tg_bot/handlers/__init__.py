@@ -2,19 +2,21 @@
 
 import datetime
 from telegram import Update, constants
-from telegram.ext import ContextTypes, ConversationHandler
-from sqlalchemy.exc import NoResultFound
+from telegram.ext import ContextTypes
 
+from core.uow import UnitOfWork
 from budget.database import Session
 from budget.schemas import UserCreateSchema
-from budget.repositories.user_repository import UserRepository
+from budget.repositories import UserRepository
+from budget.services import UserService
+from budget.exceptions import UserNotFound
 from aiclient.ai_client import Client
 from aiclient.utils import load_user_prompt
 
 from ..error_handler import NoUserFoundException
 
 
-repo: UserRepository = UserRepository(Session)
+uow = UnitOfWork(Session, repositories={'users': UserRepository})
 
 
 async def get_user(context: ContextTypes.DEFAULT_TYPE, telegram_id: int) -> None:
@@ -25,12 +27,14 @@ async def get_user(context: ContextTypes.DEFAULT_TYPE, telegram_id: int) -> None
     if context.user_data.get('db_user'):
         return context.user_data['db_user']
 
-    try:
-        user = await repo.get_user_by_telegram_id(telegram_id)
-        context.user_data['db_user'] = user
-        return user
-    except NoResultFound:
-        raise NoUserFoundException
+    async with uow:
+        service = UserService(uow)
+        try:
+            user = await service.get_user_by_telegram_id(telegram_id)
+            context.user_data['db_user'] = user
+            return user
+        except UserNotFound:
+            raise NoUserFoundException
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -44,9 +48,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         user = await get_user(context, update.effective_user.id)
         await update.message.reply_text(f"С возвращением, {user.name}!")
     except NoUserFoundException:
-        await repo.create_user(UserCreateSchema(name=update.effective_user.first_name, telegram_id=update.effective_user.id))
-        user = await get_user(context, update.effective_user.id)
-        await update.message.reply_text("Готово! Теперь можешь писать мне любые сообщения 👌. Если не знаешь что делать просто спроси и я тебе все расскажу")
+        async with uow:
+            service = UserService(uow)
+            user = await service.create_user(UserCreateSchema(name=update.effective_user.first_name, telegram_id=update.effective_user.id))
+            await uow.commit()
+            context.user_data['db_user'] = user
+            await update.message.reply_text("Готово! Теперь можешь писать мне любые сообщения 👌. Если не знаешь что делать просто спроси и я тебе все расскажу")
 
 
 

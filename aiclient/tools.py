@@ -1,153 +1,206 @@
 # This module contains openai's tools mapping and wrapper functions for the tools.
 # Wrapper functions handle exceptions from the budget app and produce results for the openai's client
 
-from sqlalchemy.exc import NoResultFound
+from core.uow import UnitOfWork
+from core.schemas import Filter
 from budget.database import Session
-from budget.repositories.account_repository import AccountRepository
-from budget.repositories.transaction_repository import TransactionRepository
+from budget.repositories import AccountRepository, TransactionRepository
+from budget.services import AccountService, TransactionService
 from budget.schemas import (
-    TransactionTopupCreateSchema, 
-    TransactionWithdrawalCreateSchema,
-    TransactionPurchaseCreateSchema,
-    TransactionTransferCreateSchema
+    AccountUpdateSchema,
+    TransactionCreateInputSchema,
+    TransactionPurchaseCreateInputSchema,
+    TransactionTransferCreateInputSchema
+)
+from budget.exceptions import (
+    AccountNotFound,
+    AccountAlreadyExists,
+    TransactionNotFound,
 )
 from . import logger
 from tg_bot.utils import notify_admin
 
 
-account_repository = AccountRepository(Session)
-transaction_repo = TransactionRepository(Session)
+uow = UnitOfWork(session=Session, repositories={
+    'accounts': AccountRepository,
+    'transactions': TransactionRepository
+})
 
 
-async def get_account_by_id(**kwargs) -> dict:
-    try:
-        account = await account_repository.get_account_by_id(**kwargs)
-    except NoResultFound:
-        {"status": "No account found"}
-    except Exception as e:
-        logger.error(str(e))
-        await notify_admin(str(e))
-        return {"status": "Some error occurred. The team is already looking into it."}
-    return account.model_dump()
+async def get_account(**kwargs) -> dict:
+    async with uow:
+        service = AccountService(uow)
+        try:
+            account = await service.get_account(**kwargs)
+            return account.model_dump()
+        except AccountNotFound:
+            return {"status": "No account found"}
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}
 
 
-async def get_accounts_by_user_id(**kwargs) -> list:
-    try:
-        accounts = await account_repository.get_accounts_by_user_id(**kwargs)
-        return [account.model_dump() for account in accounts]
-    except Exception as e:
-        logger.error(str(e))
-        await notify_admin(str(e))
-        return {"status": "Some error occurred. The team is already looking into it."}
+async def list_accounts(**kwargs) -> list:
+    filters = kwargs.pop('filters', None)
+    if filters:
+        filters = Filter.model_validate(filters)
+    async with uow:
+        service = AccountService(uow)
+        try:
+            accounts = await service.list_accounts(filters=filters, **kwargs)
+            return [account.model_dump() for account in accounts]
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}        
 
 
-async def get_user_balance(**kwargs) -> dict:
-    try:
-        balance = await account_repository.get_user_balance(**kwargs)
-        return {"balance": balance}
-    except NoResultFound:
-        return {"status": "No user found"}
-    except Exception as e:
-        logger.error(str(e))
-        await notify_admin(str(e))
-        return {"status": "Some error occurred. The team is already looking into it."}
+async def update_account(**kwargs) -> dict:
+    async with uow:
+        service = AccountService(uow)
+        try:
+            account = await service.update_account(
+                account_data=AccountUpdateSchema(**kwargs['account_data'])
+            )
+            await uow.commit()
+            return account.model_dump()
+        except AccountNotFound:
+            return {"status": "No account found"}
+        except AccountAlreadyExists:
+            return {"status": "Account already exists"}
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}
+
+
+async def get_user_balance(**kwargs) -> float:
+    async with uow:
+        service = AccountService(uow)
+        try:
+            return await service.get_user_balance(**kwargs)
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}   
 
 
 async def get_transaction(**kwargs) -> dict:
-    try:
-        transaction = await transaction_repo.get_transaction(**kwargs)
-    except NoResultFound:
-        return {"status": "Transaction not found"}
-    except Exception as e:
-        logger.error(str(e))
-        await notify_admin(str(e))
-        return {"status": "Some error occurred. The team is already looking into it."}
-    return transaction.model_dump()
+    async with uow:
+        service = TransactionService(uow)
+        try:
+            transaction = await service.get_transaction(**kwargs)
+            return transaction.model_dump()
+        except TransactionNotFound:
+            return {"status": "Transaction not found"}
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}
 
 
 async def list_transactions(**kwargs) -> list:
-    try:
-        transactions = await transaction_repo.list_transactions(**kwargs)
-        return [transaction.model_dump() for transaction in transactions]
-    except Exception as e:
-        logger.error(str(e))
-        await notify_admin(str(e))
-        return {"status": "Some error occurred. The team is already looking into it."}
+    filters = kwargs.pop('filters', None)
+    if filters:
+        filters = Filter.model_validate(filters)
+    async with uow:
+        service = TransactionService(uow)
+        try:
+            transactions = await service.list_transactions(filters=filters, **kwargs)
+            return [transaction.model_dump() for transaction in transactions]
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}
 
 
 async def create_topup(**kwargs) -> dict:
-    if 'transaction' not in kwargs:
-        raise ValueError('Check tools config')
-    try:
-        validated_kwargs = TransactionTopupCreateSchema(**kwargs['transaction'])
-        await transaction_repo.create_topup(validated_kwargs)
-        return {"status": "Success"}
-    except NoResultFound:
-        return {"status": "Account not found"}
-    except Exception as e:
-        logger.error(str(e))
-        await notify_admin(str(e))
-        return {"status": "Some error occurred. The team is already looking into it."}
+    async with uow:
+        service = TransactionService(uow)
+        try:
+            transaction = await service.create_topup(
+                transaction_data=TransactionCreateInputSchema(**kwargs['transaction_data'])
+            )
+            await uow.commit()
+            return transaction.model_dump()
+        except AccountNotFound:
+            return {"status": "No account found"}
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}
 
 
 async def create_withdraw(**kwargs) -> dict:
-    if 'transaction' not in kwargs:
-        raise ValueError('Check tools config')
-    try:
-        validated_kwargs = TransactionWithdrawalCreateSchema(**kwargs['transaction'])
-        await transaction_repo.create_withdraw(validated_kwargs)
-        return {"status": "Success"}
-    except NoResultFound:
-        return {"status": "Account not found"}
-    except Exception as e:
-        logger.error(str(e))
-        await notify_admin(str(e))
-        return {"status": "Some error occurred. The team is already looking into it."}
+    async with uow:
+        service = TransactionService(uow)
+        try:
+            transaction = await service.create_withdraw(
+                transaction_data=TransactionCreateInputSchema(**kwargs['transaction_data'])
+            )
+            await uow.commit()
+            return transaction.model_dump()
+        except AccountNotFound:
+            return {"status": "No account found"}
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}
 
 
 async def create_purchase(**kwargs) -> dict:
-    if 'transaction' not in kwargs:
-        raise ValueError('Check tools config')
-    try:
-        validated_kwargs = TransactionPurchaseCreateSchema(**kwargs['transaction'])
-        await transaction_repo.create_purchase(validated_kwargs)
-        return {"status": "Success"}
-    except NoResultFound:
-        return {"status": "Account not found"}
-    except Exception as e:
-        logger.error(str(e))
-        await notify_admin(str(e))
-        return {"status": "Some error occurred. The team is already looking into it."}
+    async with uow:
+        service = TransactionService(uow)
+        try:
+            transaction = await service.create_purchase(
+                transaction_data=TransactionPurchaseCreateInputSchema(**kwargs['transaction_data'])
+            )
+            await uow.commit()
+            return transaction.model_dump()
+        except AccountNotFound:
+            return {"status": "No account found"}
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}
 
 
 async def create_transfer(**kwargs) -> dict:
-    if 'transaction' not in kwargs:
-        raise ValueError('Check tools config')
-    try:
-        validated_kwargs = TransactionTransferCreateSchema(**kwargs['transaction'])
-        await transaction_repo.create_transfer(validated_kwargs)
-        return {"status": "Success"}
-    except NoResultFound:
-        return {"status": "Account not found"}
-    except Exception as e:
-        logger.error(str(e))
-        await notify_admin(str(e))
-        return {"status": "Some error occurred. The team is already looking into it."}
+    async with uow:
+        service = TransactionService(uow)
+        try:
+            transaction = await service.create_transfer(
+                transaction_data=TransactionTransferCreateInputSchema(**kwargs['transaction_data'])
+            )
+            await uow.commit()
+            return transaction.model_dump()
+        except AccountNotFound:
+            return {"status": "No account found"}
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}
 
 
 async def delete_transaction(**kwargs) -> dict:
-    try:
-        await transaction_repo.delete_transaction(**kwargs)
-        return {"status": "Success"}
-    except Exception as e:
-        logger.error(str(e))
-        await notify_admin(str(e))
-        return {"status": "Some error occurred. The team is already looking into it."}
+    async with uow:
+        service = TransactionService(uow)
+        try:
+            await service.delete_transaction(**kwargs)
+            await uow.commit()
+        except TransactionNotFound:
+            return {"status": "Transaction not found"}
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}
 
 
 tools_mapping = {
-    "get_account_by_id": get_account_by_id,
-    "get_accounts_by_user_id": get_accounts_by_user_id,
+    "get_account": get_account,
+    "list_accounts": list_accounts,
+    "update_account": update_account,
     "get_user_balance": get_user_balance,
     "get_transaction": get_transaction,
     "list_transactions": list_transactions,
