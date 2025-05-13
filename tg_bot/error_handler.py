@@ -9,16 +9,11 @@ class NoUserFoundException(Exception):
     ...
 
 
-GLOBAL_EXCEPTION_RESPONSES = {
-    NoUserFoundException: "Чтобы начать, пожалуйста нажми /start 👋",
-}
-
-
 async def error_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     err_type = type(context.error)
-    if err_type in GLOBAL_EXCEPTION_RESPONSES:
-        await update.message.reply_text(GLOBAL_EXCEPTION_RESPONSES[err_type])
+    if err_type in [NoUserFoundException]:
+        await update.message.reply_text(context.bot_data['messages'].user_not_found)
     else:
         logger.error(str(context.error))
         await notify_admin(str(context.error))
-        await update.message.reply_text("Some error occurred. The team is already looking into it.")
+        await update.message.reply_text(context.bot_data['messages'].default_error_message)

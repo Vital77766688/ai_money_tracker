@@ -109,7 +109,7 @@
                             "type": "object",
                             "properties": {
                                 "field": {"type": "string"},
-                                "op": {"type": "string"},
+                                "op": {"type": "string", "description": "Possible operations: '=', '==', '!=', '<>', '>', '>=', '<', '<=', 'in', 'not in', 'like', 'not like', 'ilike', 'not ilike', 'between', 'is null', 'is not null', 'true', 'false'"},
                                 "value": {"type": ["string", "number", "boolean", "null"]}
                             }
                         }

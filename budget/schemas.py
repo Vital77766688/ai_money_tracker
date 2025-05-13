@@ -25,7 +25,7 @@ class UserReadSchema(BaseModel):
 class AccountCreateSchema(BaseModel):
     user_id: int
     name: str = Field(..., max_length=20)
-    descrtiption: str | None = Field(None, max_length=255)
+    description: str | None = Field(None, max_length=255)
     currency: str = Field(..., min_length=3, max_length=3)
     balance: float
 

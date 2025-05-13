@@ -16,13 +16,16 @@ from pydantic import ValidationError
 from core.uow import UnitOfWork
 from budget.database import Session
 from budget.schemas import AccountCreateSchema
-from budget.repositories import AccountRepository
+from budget.repositories import AccountRepository, TransactionRepository
 from budget.services import AccountService
 from budget.exceptions import AccountAlreadyExists, CurrencyNotFound
 from . import get_user
 
 
-uow = UnitOfWork(Session, repositories={'accounts': AccountRepository})
+uow = UnitOfWork(Session, repositories={
+    'accounts': AccountRepository,
+    'transactions': TransactionRepository
+})
 
 
 (
@@ -72,73 +75,24 @@ def get_validation_error_message(errors: ValidationError) -> list[str]:
 
 
 class CreateAccountMessages:
-    user_not_found = "Что-то не так. Попробуй начать с команды /start"
-    create_account_ready = """
-Сейчас заполним небольшой опросник, чтобы создать счет.
-Если передумаешь, просто нажми /cancel\n
-Готов?\n
-Ответь *Да* или *Нет*
-"""
-    create_account_name = """
-Укажи название счета.\n
-Не более 20 символов
-"""
-    create_account_description = """
-Хорошо! Теперь заполни описание.\n
-Не более 50 символов (можно оставить пустым)
-"""
-    create_account_currency = """
-Очень хорошо! Какая у счета будет валюта?\n
-Введите название валюты или ее 3-х символьный код
-"""
-    create_account_balance = """
-Отлично! Осталось только указать начальный баланс.
-Если у тебя долг, то напиши отрицательное число.\n
-Нужно ввести число с разделителем или без него
-"""
-    create_account_reject = """
-Ок, ну если что команда для создания нового счета вот /create\\_account
-"""
-    create_account_wrong = """
-Укажи *Да* или *Нет*\n
-Также ты можешь отменить создание счета. Вот команда для этого /cancel
-"""
-    create_account_try_again = """
-Попробуем снова?\n
-Ответь *Да* или *Нет*
-"""
-    create_account_cancel = """
-Ок, если передумаешь — просто напиши /create\\_account
-"""
-    create_account_success = """
-Круто! Счет создан!\n
-Если хочешь создать еще один тапни /create\\_account
-"""
-    create_account_system_error = """Что-то поломалось. Мы уже смотрим, повтори позже"""
-    no_currency_found = """Не могу найти такую валюту, попробуй ввести подробнее или 3-х значный код, если знаешь"""
-
     @classmethod
-    def create_account_validated(cls, account: dict) -> str:
+    def create_account_validated(cls, context: ContextTypes.DEFAULT_TYPE, account: dict) -> str:
         balance = f"{float(account['balance']):,.2f}".replace(',', ' ').replace('.', ',')
-        return f"""
-Замечательно! Теперь проверь все ли верно записано.\n
-*Название счета:* {account.get('name')}
-*Описание:* {account['description'] if account.get('description') else ''}
-*Валюта:* {account.get('currency_name')} ({account.get('currency')})
-*Баланс:* {balance}\n
-Ответь *Да* или *Нет*
-"""
+        account_description = account['description'] if account.get('description') else ''
+        return context.bot_data['messages'].account_validated.format(
+            account_name = account.get('name'),
+            account_description = account_description,
+            account_currency_name = account.get('currency_name'),
+            account_currency_iso_code = account.get('currency'),
+            balance=balance
+        )
     
     @classmethod
-    def create_account_validation_error(cls, errors: ValidationError) -> str:
-        msg = "Есть ошибки при заполнении опросника. Исправьте их и продолжим.\n\n"
-        # for error in errors:
-        #     account[error['loc'][0]] = None
-        #     msg += f"*{error['loc'][0]}:* {error['msg']}\n"
+    def create_account_validation_error(cls, context: ContextTypes.DEFAULT_TYPE, errors: ValidationError) -> str:
+        errs = ''
         for error in get_validation_error_message(errors):
-            msg += f"- {error}\n"
-        msg += '\nТакже ты можешь отменить создание счета командой /cancel'
-        return msg
+            errs += f"- {error}\n"
+        return context.bot_data['messages'].account_validation_error.format(errors=errs)
 
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -146,12 +100,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     _ = await get_user(context, update.effective_user.id)
     context.user_data['new_account'] = {}    
     reply_markup = ReplyKeyboardMarkup(
-        keyboard=[["Да", "Нет"]],
+        keyboard=[[context.bot_data['messages'].yes, context.bot_data['messages'].no]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
     await update.message.reply_markdown(
-        CreateAccountMessages.create_account_ready,
+        context.bot_data['messages'].create_account_ready,
         reply_markup=reply_markup
     )
     return CREATE_ACCOUNT
@@ -167,21 +121,21 @@ async def create_account(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
                 resize_keyboard=True,
                 one_time_keyboard=True,
             )
-        await update.message.reply_markdown(CreateAccountMessages.create_account_name, reply_markup=reply_markup)
+        await update.message.reply_markdown(context.bot_data['messages'].create_account_name, reply_markup=reply_markup)
         return ACCOUNT_NAME
     elif response.strip().lower() == 'нет':
         await update.message.reply_markdown(
-            CreateAccountMessages.create_account_reject,
+            context.bot_data['messages'].create_account_reject,
             reply_markup=ReplyKeyboardRemove()
         )
         return ConversationHandler.END
     reply_markup = ReplyKeyboardMarkup(
-        keyboard=[["Да", "Нет"]],
+        keyboard=[[context.bot_data['messages'].yes, context.bot_data['messages'].no]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
     await update.message.reply_markdown(
-        CreateAccountMessages.create_account_wrong,
+        context.bot_data['messages'].create_account_wrong,
         reply_markup=reply_markup
     )
     return CREATE_ACCOUNT
@@ -191,7 +145,7 @@ async def create_account_name(update: Update, context: ContextTypes.DEFAULT_TYPE
     await context.bot.send_chat_action(chat_id=update.effective_user.id, action=constants.ChatAction.TYPING)
     context.user_data['new_account']['name'] = update.message.text
 
-    reply_markup = ReplyKeyboardMarkup(keyboard=[['Пропустить']], resize_keyboard=True, one_time_keyboard=True)
+    reply_markup = ReplyKeyboardMarkup(keyboard=[[context.bot_data['messages'].skip]], resize_keyboard=True, one_time_keyboard=True)
     if context.user_data['new_account'].get('description'):
         reply_markup = ReplyKeyboardMarkup(
             keyboard=[[context.user_data['new_account']['description']]],
@@ -199,7 +153,7 @@ async def create_account_name(update: Update, context: ContextTypes.DEFAULT_TYPE
             one_time_keyboard=True,
         )
     await update.message.reply_markdown(
-        CreateAccountMessages.create_account_description, 
+        context.bot_data['messages'].create_account_description, 
         reply_markup=reply_markup
     )
     # Посадить кнопки
@@ -219,7 +173,7 @@ async def create_account_description(update: Update, context: ContextTypes.DEFAU
             one_time_keyboard=True,
         )
     await update.message.reply_markdown(
-        CreateAccountMessages.create_account_currency,
+        context.bot_data['messages'].create_account_currency,
         reply_markup=reply_markup
     )
     return ACCOUNT_CURRENCY
@@ -233,7 +187,7 @@ async def create_account_currency(update: Update, context: ContextTypes.DEFAULT_
             currency = await service.find_currency(update.message.text)
         except CurrencyNotFound:
             await update.message.reply_markdown(
-                CreateAccountMessages.no_currency_found,
+                context.bot_data['messages'].no_currency_found,
                 reply_markup=ReplyKeyboardRemove()
             )
             return ACCOUNT_CURRENCY
@@ -250,7 +204,7 @@ async def create_account_currency(update: Update, context: ContextTypes.DEFAULT_
             one_time_keyboard=True,
         )
     await update.message.reply_markdown(
-        CreateAccountMessages.create_account_balance,
+        context.bot_data['messages'].create_account_balance,
         reply_markup=reply_markup
     )
     return ACCOUNT_INIT_BALANCE
@@ -261,7 +215,7 @@ async def create_account_init_balance(update: Update, context: ContextTypes.DEFA
     context.user_data['new_account']['balance'] = update.message.text.replace(',', '.')
 
     reply_markup = ReplyKeyboardMarkup(
-        keyboard=[["Да", "Нет"]],
+        keyboard=[[context.bot_data['messages'].yes, context.bot_data['messages'].no]],
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -270,17 +224,17 @@ async def create_account_init_balance(update: Update, context: ContextTypes.DEFA
     try:
         context.user_data['validated_account'] = AccountCreateSchema(user_id=user_id, **account_data)
         await update.message.reply_markdown(
-            CreateAccountMessages.create_account_validated(account_data),
+            CreateAccountMessages.create_account_validated(context, account_data),
             reply_markup=reply_markup
         )
         return CREATE_ACCOUNT_CHECK
     except ValidationError as e:
         await update.message.reply_markdown(
-            CreateAccountMessages.create_account_validation_error(e)
+            CreateAccountMessages.create_account_validation_error(context, e)
         )
         await asyncio.sleep(1)
         await update.message.reply_markdown(
-            CreateAccountMessages.create_account_try_again,
+            context.bot_data['messages'].create_account_try_again,
             reply_markup=reply_markup
         )
         return CREATE_ACCOUNT
@@ -296,29 +250,38 @@ async def create_account_check(update: Update, context: ContextTypes.DEFAULT_TYP
                 await service.create_account(context.user_data['validated_account'])
                 await uow.commit()
                 await update.message.reply_markdown(
-                    CreateAccountMessages.create_account_success, 
+                    context.bot_data['messages'].create_account_success, 
                     reply_markup=ReplyKeyboardRemove()
                 )
                 return ConversationHandler.END
             except AccountAlreadyExists:
-                await update.message.reply_markdown(
-                    'Account with this name already exists'
+                reply_markup = ReplyKeyboardMarkup(
+                    keyboard=[[context.bot_data['messages'].yes, context.bot_data['messages'].no]],
+                    resize_keyboard=True,
+                    one_time_keyboard=True,
                 )
-                return ConversationHandler.END
+                await update.message.reply_markdown(
+                    context.bot_data['messages'].create_account_already_exists
+                )
+                await update.message.reply_markdown(
+                    context.bot_data['messages'].create_account_try_again,
+                    reply_markup=reply_markup
+                )
+                return CREATE_ACCOUNT
             except Exception as e:
                 # Is there more elegant way to perform conversation end with global error_handler?
                 return await raise_for_conversation(update, context, e)
     elif response.strip().lower() == 'нет':
         await update.message.reply_markdown(
-            CreateAccountMessages.create_account_reject, 
+            context.bot_data['messages'].create_account_reject, 
             reply_markup=ReplyKeyboardRemove()
         )
         return ConversationHandler.END
     else:
         await update.message.reply_markdown(
-            CreateAccountMessages.create_account_wrong,
+            context.bot_data['messages'].create_account_wrong,
             reply_markup = ReplyKeyboardMarkup(
-                keyboard=[["Да", "Нет"]],
+                keyboard=[[context.bot_data['messages'].yes, context.bot_data['messages'].no]],
                 resize_keyboard=True,
                 one_time_keyboard=True,
             )
@@ -328,7 +291,7 @@ async def create_account_check(update: Update, context: ContextTypes.DEFAULT_TYP
 
 async def cancel(update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
     await update.message.reply_markdown(
-        CreateAccountMessages.create_account_cancel, 
+        context.bot_data['messages'].create_account_cancel, 
         reply_markup=ReplyKeyboardRemove()
     )
     return ConversationHandler.END

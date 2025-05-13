@@ -46,14 +46,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     await context.bot.send_chat_action(chat_id=update.effective_user.id, action=constants.ChatAction.TYPING)
     try:
         user = await get_user(context, update.effective_user.id)
-        await update.message.reply_text(f"С возвращением, {user.name}!")
+        await update.message.reply_text(context.bot_data['messages'].user_welcome_back.format(user_name=user.name))
     except NoUserFoundException:
         async with uow:
             service = UserService(uow)
             user = await service.create_user(UserCreateSchema(name=update.effective_user.first_name, telegram_id=update.effective_user.id))
             await uow.commit()
             context.user_data['db_user'] = user
-            await update.message.reply_text("Готово! Теперь можешь писать мне любые сообщения 👌. Если не знаешь что делать просто спроси и я тебе все расскажу")
+            await update.message.reply_text(context.bot_data['messages'].user_registered_success)
 
 
 

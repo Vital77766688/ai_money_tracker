@@ -62,6 +62,16 @@ class AccountService(BaseService):
     async def create_account(self, account_data: AccountCreateSchema) -> AccountReadSchema:
         try:
             account = await self.uow.accounts.create(account_data)
+            type_ = await self.uow.transactions.get_transaction_type(name=TransactionTypesEnum.TOPUP)
+            _ = await self.uow.transactions.create(
+                item_data = TransactionCreateSchema(
+                    type=type_,
+                    account=account,
+                    amount=account_data.balance,
+                    currency=account_data.currency,
+                    description='Init balance'
+                )
+            )
             return AccountReadSchema.model_validate(account)
         except ConstraintsViolation:
             raise AccountAlreadyExists
