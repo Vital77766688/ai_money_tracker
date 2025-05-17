@@ -6,7 +6,7 @@ from sqlalchemy.sql.selectable import Select
 from sqlalchemy.sql.elements import BinaryExpression
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.exc import NoResultFound, IntegrityError
-from budget.database import Base
+from core.database import Base
 from core.exceptions import InstanceNotFound, ConstraintsViolation, FilterFieldNotAllowed, FilterOperationNotAllowed
 from core.schemas import OPERATOR_MAP, Filter
 

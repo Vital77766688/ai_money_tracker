@@ -3,9 +3,9 @@
 
 from core.uow import UnitOfWork
 from core.schemas import Filter
-from budget.database import Session
+from core.database import Session
 from budget.repositories import AccountRepository, TransactionRepository
-from budget.services import AccountService, TransactionService
+from budget.services import AccountService, TransactionService, CurrencyService
 from budget.schemas import (
     AccountUpdateSchema,
     TransactionCreateInputSchema,
@@ -197,6 +197,17 @@ async def delete_transaction(**kwargs) -> dict:
             return {"status": "Some error occurred. The team is already looking into it."}
 
 
+async def get_currency_rate(**kwargs) -> float:
+    async with uow:
+        service = CurrencyService(uow)
+        try:
+            return await service.get_currency_rate(**kwargs)
+        except Exception as e:
+            logger.error(str(e))
+            await notify_admin(str(e))
+            return {"status": "Some error occurred. The team is already looking into it."}
+
+
 tools_mapping = {
     "get_account": get_account,
     "list_accounts": list_accounts,
@@ -208,5 +219,6 @@ tools_mapping = {
     "create_withdraw": create_withdraw,
     "create_purchase": create_purchase,
     "create_transfer": create_transfer,
-    "delete_transaction": delete_transaction
+    "delete_transaction": delete_transaction,
+    "get_currency_rate": get_currency_rate
 }

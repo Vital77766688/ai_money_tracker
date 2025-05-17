@@ -30,7 +30,7 @@ from budget.exceptions import (
 
 
 # ---------------- FIXTURES ---------------- #
-CONFIG = {**dotenv_values('.env_test')}
+CONFIG = {**dotenv_values('env_test')}
 print('\n\n\n\n', CONFIG, '\n\n\n\n')
 
 async_connection_url = URL.create(
@@ -190,7 +190,7 @@ async def test_create_user_fail(uow):
 
 
 @pytest.mark.asyncio
-async def test_create_and_get_account(uow, seed_user):
+async def test_create_and_get_account(uow, seed_user, seed_transaction_types):
     async with uow:
         service = AccountService(uow)
         account_created = await service.create_account(
@@ -380,7 +380,6 @@ async def test_list_transactions_with_filters(uow, seed_user, seed_accounts, see
         ])
         transactions = await service.list_transactions(user_id=1, filters=filters)
         assert len(transactions) == 0
-
 
 
 @pytest.mark.asyncio

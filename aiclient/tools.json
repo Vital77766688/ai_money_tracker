@@ -28,8 +28,8 @@
                         "items": {
                             "type": "object",
                             "properties": {
-                                "field": {"type": "string"},
-                                "op": {"type": "string"},
+                                "field": {"type": "string", "description": "Possible fields: 'id', 'user_id', 'account_name', 'currency', 'is_active'"},
+                                "op": {"type": "string", "description": "Possible operations: '=', '==', '!=', '<>', '>', '>=', '<', '<=', 'in', 'not in', 'like', 'not like', 'ilike', 'not ilike', 'between', 'is null', 'is not null', 'true', 'false'"},
                                 "value": {"type": ["string", "number", "boolean", "null"]}
                             }
                         }
@@ -108,7 +108,7 @@
                         "items": {
                             "type": "object",
                             "properties": {
-                                "field": {"type": "string"},
+                                "field": {"type": "string", "description": "Possible fields: 'id', 'type', 'user_id', 'account_id', 'transaction_date', 'reference_transaction_id'"},
                                 "op": {"type": "string", "description": "Possible operations: '=', '==', '!=', '<>', '>', '>=', '<', '<=', 'in', 'not in', 'like', 'not like', 'ilike', 'not ilike', 'between', 'is null', 'is not null', 'true', 'false'"},
                                 "value": {"type": ["string", "number", "boolean", "null"]}
                             }
@@ -240,6 +240,21 @@
                     "transaction_id": {"type": "integer", "description": "The ID of the transaction."}
                 },
                 "required": ["user_id", "account_id", "transaction_id"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_currency_rate",
+            "description": "Return actual currency rate value.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "first": {"type": "string", "description": "First currency ISO code in the pair."},
+                    "second": {"type": "string", "description": "First currency ISO code in the pair."}
+                },
+                "required": ["first", "second"]
             }
         }
     }

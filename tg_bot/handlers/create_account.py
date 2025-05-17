@@ -14,7 +14,7 @@ from telegram.ext import (
 from pydantic import ValidationError
 
 from core.uow import UnitOfWork
-from budget.database import Session
+from core.database import Session
 from budget.schemas import AccountCreateSchema
 from budget.repositories import AccountRepository, TransactionRepository
 from budget.services import AccountService

@@ -1,12 +1,13 @@
+import asyncio
 import datetime
 from typing import List, Dict, Any
 from thefuzz import process, fuzz
+import requests
+from bs4 import BeautifulSoup
 from core.schemas import Filter
 from core.exceptions import (
     InstanceNotFound, 
     ConstraintsViolation, 
-    FilterFieldNotAllowed, 
-    FilterOperationNotAllowed
 )
 from budget.uow import UnitOfWork
 from budget.enums import TransactionTypesEnum
@@ -250,3 +251,20 @@ class TransactionService(BaseService):
             ref_transaction.deleted_at = datetime.datetime.now()
             ref_account = await self.uow.accounts.get(id=ref_transaction.account_id)
             ref_account.balance -= ref_transaction.amount
+
+
+class CurrencyService(BaseService):
+    async def get_currency_rate(self, first: str, second: str) -> float:
+        loop = asyncio.get_event_loop()
+        url = "https://nationalbank.kz/rss/rates_all.xml"
+        response = await loop.run_in_executor(None, requests.get, url)
+        print(type(response))
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, 'xml')
+        first_value, second_value = 1., 1.
+        for item in soup.find_all('item'):
+            if item.find('title').text.strip() == first:
+                first_value = float(item.find('description').text.strip()) / int(item.find('quant').text.strip())
+            if item.find('title').text.strip() == second:
+                second_value = float(item.find('description').text.strip()) / int(item.find('quant').text.strip())
+        return round(first_value / second_value, 2)

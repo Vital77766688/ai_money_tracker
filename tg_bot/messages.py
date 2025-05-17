@@ -1,5 +1,5 @@
 from sqlalchemy import select
-from budget.database import SyncSession
+from core.database import SyncSession
 from tg_bot.models import TgMessage
 
 

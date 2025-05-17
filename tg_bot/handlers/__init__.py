@@ -5,7 +5,7 @@ from telegram import Update, constants
 from telegram.ext import ContextTypes
 
 from core.uow import UnitOfWork
-from budget.database import Session
+from core.database import Session
 from budget.schemas import UserCreateSchema
 from budget.repositories import UserRepository
 from budget.services import UserService

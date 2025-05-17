@@ -1,9 +1,8 @@
-from typing import List, Optional
-from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import Integer, BigInteger, String, Text, Float, Date, DateTime, ForeignKey, UniqueConstraint,  func
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy import BigInteger, String, Text
 
-# Move this to core
-from budget.database import Base
+
+from core.database import Base
 
 
 class TgMessage(Base):

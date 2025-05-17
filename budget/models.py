@@ -2,7 +2,7 @@ from typing import List, Optional
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import Integer, BigInteger, String, Float, Date, DateTime, ForeignKey, UniqueConstraint,  func
 
-from budget.database import Base
+from core.database import Base
 
 
 class User(Base):
